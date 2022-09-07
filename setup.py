@@ -14,7 +14,7 @@ requirements = [
 
 setup(
      name='smoove',
-     version=spimple.__version__,
+     version=smoove.__version__,
      author="Landman Bester",
      author_email="lbester@sarao.ac.za",
      description="Miscelaneous fast smoothing utilities",

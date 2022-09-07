@@ -28,4 +28,4 @@ def test_kanterp():
 
     iplot = np.where(w!=0)
 
-    ms, Ps = kanterp3(x, y, w, 3, nu0=2)
+    ms, Ps = kanterp(x, y, w, 3, nu0=2)
