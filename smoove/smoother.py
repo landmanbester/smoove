@@ -1,4 +1,5 @@
 import numpy as np
+import numba
 from smoove.utils import Afunc, Qfunc
 
 # @numba.njit

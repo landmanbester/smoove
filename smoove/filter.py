@@ -1,7 +1,8 @@
 import numpy as np
+import numba
 from smoove.utils import Afunc, Qfunc
 
-# @numba.njit
+@numba.njit
 def Kfilter(m0, P0, x, y, H, Rinv, sigmaf):
     N = x.size
     delta = x[1:] - x[0:-1]
