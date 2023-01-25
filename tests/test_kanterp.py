@@ -1,5 +1,5 @@
 import numpy as np
-from smoove.kanterp import kanterp, kanterp3
+from smoove.kanterp import kanterp, kanterp_fast
 
 def func(x):
     return 10*np.sin(20*x) #*np.exp(-x**2/0.25) + np.exp(x)

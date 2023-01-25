@@ -14,14 +14,14 @@ def kanterp(x, y, w, niter=5, nu0=2, sigmaf0=None, sigman0=1, verbose=0, window=
     H = np.zeros((1, M), dtype=np.float64)
     H[0, 0] = 1
 
-
-
     if sigmaf0 is None:
         sigmaf = np.sqrt(N)
     else:
         sigmaf = sigmaf0
 
-    bnds = ((0.1*sigmaf, 10*sigmaf),)
+    sigman = sigman0
+
+    bnds = ((1e-5, 10*N),)
     I = y != 0
     m0 = np.median(y[I][0:window])
     x0 = np.median(x[I][0:window])
@@ -29,9 +29,8 @@ def kanterp(x, y, w, niter=5, nu0=2, sigmaf0=None, sigman0=1, verbose=0, window=
     xplus = np.median(x[I][window:2*window])
     dm0 = (mplus-m0)/(xplus - x0)
     m0 = np.array((m0, dm0))
-    P0 = np.mean((y[I][0:window] - m0)**2) * np.eye(M)
-    w /= sigman0**2
-    m, P = Kfilter(sigmaf, y, x, w, m0, dm0, P0, 0, P0)
+    P0 = np.mean((y[I][0:window] - m0[0])**2) * np.eye(M)
+    m, P = Kfilter(sigmaf, y, x, w/sigman**2, m0, P0, H)
     ms, Ps = RTSsmoother(m, P, x, sigmaf)
 
     # initial residual
@@ -47,7 +46,7 @@ def kanterp(x, y, w, niter=5, nu0=2, sigmaf0=None, sigman0=1, verbose=0, window=
 
         # get smoothed signal
         sigmaf, fval, dinfo = fmin(evidence, np.array(sigmaf),
-                                   args=(y, x, eta, ms[0, 0], ms[1, 0], Ps[0, 0, 0], Ps[0, 1, 0], Ps[1, 1, 0], sigman),
+                                   args=(y, x, H, eta, m0, P0,  sigman),
                                    approx_grad=True,
                                    bounds=bnds)
 
@@ -55,8 +54,8 @@ def kanterp(x, y, w, niter=5, nu0=2, sigmaf0=None, sigman0=1, verbose=0, window=
 
         m0 = ms[:, 0]
         P0 = Ps[:, :, 0]
-        m, P = Kfilter_fast(sigmaf[0], y, x, eta/sigman**2, ms[0, 0], ms[1, 0], Ps[0, 0, 0], Ps[0, 1, 0], Ps[1, 1, 0])
-        ms, Ps = RTSsmoother_fast(m, P, x, sigmaf[0])
+        m, P = Kfilter(sigmaf[0], y, x, eta/sigman**2, m0, P0, H)
+        ms, Ps = RTSsmoother(m, P, x, sigmaf[0])
 
 
         if verbose:
@@ -81,8 +80,6 @@ def kanterp_fast(x, y, w, niter=5, nu0=2, sigmaf0=None, sigman0=1, verbose=0, wi
     M = 2  # cubic smoothing spline
     H = np.zeros((1, M), dtype=np.float64)
     H[0, 0] = 1
-
-
 
     if sigmaf0 is None:
         sigmaf = np.sqrt(N)
@@ -115,16 +112,18 @@ def kanterp_fast(x, y, w, niter=5, nu0=2, sigmaf0=None, sigman0=1, verbose=0, wi
         logeta = polygamma(0, (nu+1)/2) - np.log((nu + ressq)/2)
 
         # get smoothed signal
-        sigmaf, fval, dinfo = fmin(evidence3, np.array(sigmaf),
-                                   args=(y, x, eta, ms[0, 0], ms[1, 0], Ps[0, 0, 0], Ps[0, 1, 0], Ps[1, 1, 0], sigman),
+        m0 = ms[:, 0]
+        P0 = Ps[:, :, 0]
+        sigmaf, fval, dinfo = fmin(evidence_fast, np.array(sigmaf),
+                                   args=(y, x, eta, m0[0], m0[1],
+                                         P0[0, 0], P0[0, 1], P0[1, 1],
+                                         sigman),
                                    approx_grad=True,
                                    bounds=bnds)
 
-
-
-        m0 = ms[:, 0]
-        P0 = Ps[:, :, 0]
-        m, P = Kfilter_fast(sigmaf[0], y, x, eta/sigman**2, ms[0, 0], ms[1, 0], Ps[0, 0, 0], Ps[0, 1, 0], Ps[1, 1, 0])
+        m, P = Kfilter_fast(sigmaf[0], y, x, eta/sigman**2,
+                            m0[0], m0[1],
+                            P0[0, 0], P0[0, 1], P0[1, 1],)
         ms, Ps = RTSsmoother_fast(m, P, x, sigmaf[0])
 
 

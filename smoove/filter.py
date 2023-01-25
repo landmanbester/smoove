@@ -2,8 +2,34 @@ import numpy as np
 import numba
 from smoove.utils import Afunc, Qfunc
 
+
+def Kfilter_gen(y, w, m0, P0, A, Q, H):
+    '''
+    Length K Kalman filter for D dimensional data and M
+    dimensional state vector with diagonal noise covariance.
+
+    inputs:
+        y   - K x D array, data
+        w   - K x D array, weights
+        m0  - M array, initial state
+        P0  - M x M array, initial covariance
+        A   - state evolution operator
+        Q   - process noise operator
+        H   - measurement operator
+
+    All operators may only depend on the state index (i.e. k)
+    and A and H need to have their adjoint action defined as
+    and .H method.
+
+    '''
+    N, D = y.shape
+    M = m0.size
+
+
+
+
 @numba.njit
-def Kfilter(m0, P0, x, y, H, Rinv, sigmaf):
+def Kfilter(sigmaf, y, x, w, m0, P0, H):
     N = x.size
     delta = x[1:] - x[0:-1]
     M = m0.size
@@ -19,14 +45,14 @@ def Kfilter(m0, P0, x, y, H, Rinv, sigmaf):
         mp = A @ m[:, k-1]
         Pp = A @ P[:, :, k-1] @ A.T + Q
 
-        if Rinv[k]:
+        if w[k] > 1e-6:
             v = y[k] - H @ mp
 
             # Use WMI to write inverse ito weights (not variance)
             Ppinv = np.linalg.inv(Pp)
-            tmp = Ppinv + H.T @ (Rinv[k] * H)
+            tmp = Ppinv + H.T @ (w[k] * H)
             tmpinv = np.linalg.inv(tmp)
-            Sinv = Rinv[k] - Rinv[k] * H @ tmpinv @ (H.T * Rinv[k])
+            Sinv = w[k] - w[k] * H @ tmpinv @ (H.T * w[k])
 
             K = Pp @ H.T @ Sinv
 
@@ -40,7 +66,7 @@ def Kfilter(m0, P0, x, y, H, Rinv, sigmaf):
 
 
 @numba.njit
-def Kfilter_fast(sigmaf, y, x, Rinv, m0, m1, p00, p01, p11):
+def Kfilter_fast(sigmaf, y, x, w, m0, m1, p00, p01, p11):
     N = x.size
     delta = x[1:] - x[0:-1]
     m = np.zeros((2, N), dtype=np.float64)
@@ -53,7 +79,6 @@ def Kfilter_fast(sigmaf, y, x, Rinv, m0, m1, p00, p01, p11):
     P[1, 1, 0] = p11
 
     q = sigmaf**2
-    w = Rinv
     for k in range(1, N):
         # This can be avoided if the data are on a regular grid
         dlta = delta[k-1]
@@ -70,7 +95,7 @@ def Kfilter_fast(sigmaf, y, x, Rinv, m0, m1, p00, p01, p11):
         pp01 = dlta*P[1, 1, k-1] + P[0, 1, k-1] + q01
         pp11 = P[1, 1, k-1] + q11
 
-        if Rinv[k]:
+        if w[k] > 1e-6:
             v = y[k] - mp0
             det = pp00 * pp11 - pp01 * pp01
 

@@ -96,3 +96,20 @@ def Qfunc(q, delta, m):
     return Q
 
 
+def modulated_chirp(t, a, b, c):
+    tm = np.median(t)
+    envelope = np.exp(-(t-tm)**2/(2*a**2))
+    # chirp = np.sin(b*t**2 + c*t)
+    chirp = np.sin(b*np.exp(t**2))
+    return envelope * chirp
+
+# import matplotlib.pyplot as plt
+# a = 0.5
+# b = 30
+# c = 0
+# N = 512
+# t = np.linspace(-1, 1, N)
+# f = modulated_chirp(t, a, b, c)
+
+# plt.plot(t, f)
+# plt.show()

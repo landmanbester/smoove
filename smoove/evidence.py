@@ -3,7 +3,7 @@ import numba
 from smoove.utils import Afunc, Qfunc
 
 
-def evidence(theta, y, x, H, Rinv, m0, P0, sigman):
+def evidence(theta, y, x, H, w, m0, P0, sigman):
     sigmaf = theta[0]
     N = x.size
     delta = x[1:] - x[0:-1]
@@ -14,7 +14,7 @@ def evidence(theta, y, x, H, Rinv, m0, P0, sigman):
     P[:, :, 0] = P0
 
     Z = 0
-    w = Rinv / sigman**2
+    w /= sigman**2
     wmax = w.max()
     for k in range(1, N):
         A = Afunc(delta[k-1], M)
@@ -69,7 +69,7 @@ def evidence(theta, y, x, H, Rinv, m0, P0, sigman):
 
 
 @numba.njit
-def evidence_fast(theta, y, x, Rinv, m0, m1, p00, p01, p11, sigman):
+def evidence_fast(theta, y, x, w, m0, m1, p00, p01, p11, sigman):
     '''
     Same as evidence fast but theta is just sigmaf
     '''
@@ -79,7 +79,7 @@ def evidence_fast(theta, y, x, Rinv, m0, m1, p00, p01, p11, sigman):
     sigmaf = theta[0]
 
     Z = 0
-    w = Rinv / sigman**2
+    w /= sigman**2
     q = sigmaf**2
     a00 = a11 = 1.0
     wmax = w.max()
