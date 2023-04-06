@@ -1,65 +1,87 @@
+from functools import partial
 import numpy as np
 import numba
 from scipy.optimize import fmin_l_bfgs_b as fmin
-from scipy.special import polygamma
+from smoove.utils import abs_diff, diag_dot
 
-# @jit(nopython=True, nogil=True, cache=True)
-def dZdtheta(theta, xx, y, Sigma):
+
+def dZdtheta(theta, y, Sigma, kernel, xx):
     '''
-    Return log-marginal likelihood and derivs
+    Return log-marginal likelihood and derivs.
+
+    Inputs:
+        theta       - k-length array of hyper-parameters with noise scaling as last parameter
+        y           - N-length vector of data
+        Sigma       - N-length vector with noise covariance
+        kernel      - function that only takes hyper-parameters as inputs and returns the kernel as well as derivs
+
+    Outputs:
+        Z           - the negative log of the marginal likelihood (evidence)
+        dZ          - derivs of Z w.r.t. theta
+
+    Note that the function kgrad must take theta[0:-1] as the only input
+    and must return the value and gradient in terms of a scalar and an
+    array of
+    Use eg. partial
     '''
-    N = xx.shape[0]
-    sigmaf = theta[0]
-    l = theta[1]
-    sigman = theta[2]
+    N = y.size
+    thetap = theta[0:-1]
+    sigman = theta[-1]
 
     # first the negloglik
-    K = mattern52(xx, sigmaf, l)
+    K, dK = kernel.value_and_grad(thetap, xx)
+    assert dK.shape[0] == thetap.size
     Ky = K + np.diag(Sigma) * sigman**2
-    # with numba.objmode: # args?
     u, s, v = np.linalg.svd(Ky, hermitian=True)
     logdetK = np.sum(np.log(s))
     Kyinv = u.dot(v/s.reshape(N, 1))
     alpha = Kyinv.dot(y)
     Z = (np.vdot(y, alpha) + logdetK)/2
 
-    # # derivs
-    # dZ = np.zeros(theta.size)
-    # alpha = alpha.reshape(N, 1)
-    # aaT = Kyinv - alpha.dot(alpha.T)
+    # derivs
+    dZ = np.zeros(theta.size)
+    alpha = alpha.reshape(N, 1)
+    aaT = Kyinv - alpha.dot(alpha.T)
 
-    # # deriv wrt sigmaf
-    # dK = 2 * K / sigmaf
-    # dZ[0] = np.sum(diag_dot(aaT, dK))/2
+    for k in range(thetap.size):
+        dZ[k] = np.sum(diag_dot(aaT, dK[k]))/2
 
-    # # deriv wrt l
-    # dK = xx * K / l ** 3
-    # dZ[1] = np.sum(diag_dot(aaT, dK))/2
+    # deriv wrt sigman
+    dK = np.diag(2*sigman*Sigma)
+    dZ[-1] = np.sum(diag_dot(aaT, dK))/2
 
-    # # deriv wrt sigman
-    # dK = np.diag(2*sigman*Sigma)
-    # dZ[2] = np.sum(diag_dot(aaT, dK))/2
+    return Z, dZ
 
-    return Z  #, dZ
 
-def meanf(xx, xxp, y, Sigma, theta):
-    K = mattern52(xx, theta[0], theta[1])
-    Kp = mattern52(xxp, theta[0], theta[1])
-    Ky = K + np.diag(Sigma) * theta[2]**2
+def meanf(xx, xxp, y, Sigma, theta, kernel):
+    K = kernel(theta, xx)
+    Kp = kernel(theta, xxp)
+    Ky = K + np.diag(Sigma * theta[-1]**2)
     Kinvy = np.linalg.solve(Ky, y)
     return Kp @ Kinvy
 
-def meancovf(xx, xxp, xxpp, y, Sigma, theta):
+
+def meancovf(xx, xxp, xxpp, y, Sigma, theta, kernel):
     N = xx.shape[0]
-    K = mattern52(xx, theta[0], theta[1])
-    Kp = mattern52(xxp, theta[0], theta[1])
-    Kpp = mattern52(xxpp, theta[0], theta[1])
-    Ky = K + np.diag(Sigma) * theta[2]**2
+    K = kernel(theta, xx)
+    Kp = kernel(theta, xxp)
+    Kpp = kernel(theta, xxpp)
+    Ky = K + np.diag(Sigma * theta[-1]**2)
     u, s, v = np.linalg.svd(Ky, hermitian=True)
     Kyinv = u.dot(v/s.reshape(N, 1))
-    return Kp.dot(Kyinv.dot(y)), np.diag(Kpp - Kp.T.dot(Kyinv.dot(Kp)))
+    return Kp.dot(Kyinv.dot(y)), Kpp - Kp.dot(Kyinv.dot(Kp.T))
 
-def gpr(y, x, w, xp, theta0=None, nu=3.0, niter=5):
+
+def gplearn(y, x, w, xp, theta0, kernel):
+    """
+    Args:
+        y (_type_): _description_
+        x (_type_): _description_
+        w (_type_): _description_
+        xp (_type_): _description_
+        theta0 (_type_): _description_
+        kernel (_type_):
+    """
     # drop entries with zero weights
     idxn0 = w!=0
     x = x[idxn0]
@@ -68,47 +90,52 @@ def gpr(y, x, w, xp, theta0=None, nu=3.0, niter=5):
 
     N = x.size
 
-    # get matrix of differences
+    # get matrices of differences
     XX = abs_diff(x, x)
-    XXp = abs_diff(x, xp)
+    XXp = abs_diff(xp, x)
     XXpp = abs_diff(xp, xp)
 
-    if theta0 is None:
-        theta0 = np.zeros(3)
-        theta0[0] = np.std(y)
-        theta0[1] = 0.5
-        theta0[2] = 1
+    # kgrad = partial(kernel.value_and_grad, xx=XX)
+    Sigma = 1.0/w
+    theta, fval, dinfo = fmin(dZdtheta, theta0, args=(y, Sigma, kernel, XX), approx_grad=False,
+                              bounds=((1e-5, None), (1e-3, None), (1e-5, 100)),
+                              factr=1e6)
 
-    # get initial hypers assuming weight scaling
-    w = np.ones(N)/np.var(y)
-    theta, fval, dinfo = fmin(dZdtheta, theta0, args=(XX, y, 1/w), approx_grad=True,
-                              bounds=((1e-5, None), (1e-3, None), (1e-5, 100)))
+    if dinfo['warnflag']:
+        print(dinfo['task'])
 
-    mu = meanf(XX, XX, y, 1/w, theta)
-    # print(theta)
-    # return meancovf(XX, XXp, XXpp, y, 1/w, theta)
+    muf, covf = meancovf(XX, XXp, XXpp, y, Sigma, theta, kernel)
+    return theta, muf, covf
 
-    res = y - mu
-    for k in range(niter):
-        ressq = res**2/theta[-1]**2
 
-        # solve for weights
-        eta = (nu+1)/(nu + ressq)
-        logeta = polygamma(0, (nu+1)/2) - np.log((nu + ressq)/2)
+    # mu = meanf(XX, XX, y, 1/w, theta)
+    # # print(theta)
+    # # return meancovf(XX, XXp, XXpp, y, 1/w, theta)
 
-        # get initial hypers assuming weight scaling
-        theta, fval, dinfo = fmin(dZdtheta, theta, args=(XX, y, 1/eta), approx_grad=True,
-                                bounds=((1e-5, None), (1e-3, None), (1e-3, 100)))
+    # res = y - mu
+    # for k in range(niter):
+    #     print(k)
+    #     ressq = res**2/theta[-1]**2
 
-        if k == niter - 1:
-            print(nu, theta)
-            return meancovf(XX, XXp, XXpp, y, 1/eta, theta)
-        else:
-            mu = meanf(XX, XX, y, 1/eta, theta)
+    #     # solve for weights
+    #     eta = (nu+1)/(nu + ressq)
+    #     logeta = polygamma(0, (nu+1)/2) - np.log((nu + ressq)/2)
 
-        res = y - mu
+    #     # get initial hypers assuming weight scaling
+    #     theta, fval, dinfo = fmin(dZdtheta, theta, args=(XX, y, 1/eta), approx_grad=True,
+    #                             bounds=((1e-5, None), (1e-3, None), (1e-3, 100)),
+    #                             factr=1e12)
 
-        # degrees of freedom nu
-        nu, _, _ = fmin(nufunc, nu, args=(np.mean(eta), np.mean(logeta)),
-                        approx_grad=True,
-                        bounds=((1e-2, None),))
+    #     if k == niter - 1:
+    #         print(nu, theta)
+    #         return meancovf(XX, XXp, XXpp, y, 1/eta, theta)
+    #     else:
+    #         print(nu)
+    #         mu = meanf(XX, XX, y, 1/eta, theta)
+
+    #     res = y - mu
+
+    #     # degrees of freedom nu
+    #     nu, _, _ = fmin(nufunc, nu, args=(np.mean(eta), np.mean(logeta)),
+    #                     approx_grad=True,
+    #                     bounds=((1e-2, None),))

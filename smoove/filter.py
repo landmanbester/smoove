@@ -2,48 +2,22 @@ import numpy as np
 import numba
 from smoove.utils import Afunc, Qfunc
 
-
-def Kfilter_gen(y, w, m0, P0, A, Q, H):
-    '''
-    Length K Kalman filter for D dimensional data and M
-    dimensional state vector with diagonal noise covariance.
-
-    inputs:
-        y   - K x D array, data
-        w   - K x D array, weights
-        m0  - M array, initial state
-        P0  - M x M array, initial covariance
-        A   - state evolution operator
-        Q   - process noise operator
-        H   - measurement operator
-
-    All operators may only depend on the state index (i.e. k)
-    and A and H need to have their adjoint action defined as
-    and .H method.
-
-    '''
-    N, D = y.shape
-    M = m0.size
-
-
-
-
-@numba.njit
+@numba.njit(nogil=True, fastmath=True, cache=True)
 def Kfilter(sigmaf, y, x, w, m0, P0, H):
     N = x.size
     delta = x[1:] - x[0:-1]
     M = m0.size
-    m = np.zeros((M, N), dtype=np.float64)
-    P = np.zeros((M, M, N), dtype=np.float64)
-    m[:, 0] = m0
-    P[:, :, 0] = P0
-
+    m = np.zeros((N, M), dtype=np.float64)
+    P = np.zeros((N, M, M), dtype=np.float64)
+    m[0, :] = m0
+    P[0, :, :] = P0
+    Z = np.zeros((1,1))  # evidence
     for k in range(1, N):
         A = Afunc(delta[k-1], M)
         Q = Qfunc(sigmaf**2, delta[k-1], M)
 
-        mp = A @ m[:, k-1]
-        Pp = A @ P[:, :, k-1] @ A.T + Q
+        mp = A @ m[k-1, :]
+        Pp = A @ P[k-1, :, :] @ A.T + Q
 
         if w[k] > 1e-6:
             v = y[k] - H @ mp
@@ -54,77 +28,49 @@ def Kfilter(sigmaf, y, x, w, m0, P0, H):
             tmpinv = np.linalg.inv(tmp)
             Sinv = w[k] - w[k] * H @ tmpinv @ (H.T * w[k])
 
+            Z += v*Sinv*v - np.log(Sinv)
+
             K = Pp @ H.T @ Sinv
 
-            m[:, k] = mp + K @ v
-            P[:, :, k] = Pp - K @ H @ Pp
+            m[k, :] = mp + K @ v
+            P[k, :, :] = Pp - K @ H @ Pp
         else:
-            m[:, k] = mp
-            P[:, :, k] = Pp
+            m[k, :] = mp
+            P[k, :, :] = Pp
 
-    return m, P
+    return m, P, Z
 
 
-@numba.njit
-def Kfilter_fast(sigmaf, y, x, w, m0, m1, p00, p01, p11):
+@numba.njit(nogil=True, fastmath=True, cache=True)
+def Kfilter2(sigmaf, y, x, w, m0, P0, H):
     N = x.size
     delta = x[1:] - x[0:-1]
-    m = np.zeros((2, N), dtype=np.float64)
-    P = np.zeros((2, 2, N), dtype=np.float64)
-    m[0, 0] = m0
-    m[1, 0] = m1
-    P[0, 0, 0] = p00
-    P[0, 1, 0] = p01
-    P[1, 0, 0] = p01
-    P[1, 1, 0] = p11
-
-    q = sigmaf**2
+    M = m0.size
+    m = np.zeros((N, M), dtype=np.float64)
+    P = np.zeros((N, M, M), dtype=np.float64)
+    m[0, :] = m0
+    P[0, :, :] = P0
+    Z = np.zeros((1,1))  # evidence
+    R = 1.0/w
     for k in range(1, N):
-        # This can be avoided if the data are on a regular grid
-        dlta = delta[k-1]
-        a01 = dlta
-        qd = q*dlta
-        qdd = qd * dlta
-        q00 = qdd * dlta / 3
-        q01 = qdd/2
-        q11 = qd
+        A = Afunc(delta[k-1], M)
+        Q = Qfunc(sigmaf**2, delta[k-1], M)
 
-        mp0 = m[0, k-1] + dlta * m[1, k-1]
-        mp1 = m[1, k-1]
-        pp00 = dlta*P[0, 1, k-1] + dlta*(dlta*P[1, 1, k-1] + P[0, 1, k-1]) + P[0, 0, k-1] + q00
-        pp01 = dlta*P[1, 1, k-1] + P[0, 1, k-1] + q01
-        pp11 = P[1, 1, k-1] + q11
-
-        if w[k] > 1e-6:
-            v = y[k] - mp0
-            det = pp00 * pp11 - pp01 * pp01
-
-            a2 = pp11/det + w[k]
-            b2 = -pp01/det
-            c2 = -pp01/det
-            d2 = pp00/det
-            det2 = a2*d2 - b2 * c2
-            Sinv = w[k] - w[k]**2 * d2 / det2
-
-            m0 = mp0 + pp00 * Sinv * v
-            m1 = mp1 + pp01 * Sinv * v
-            p00 = -pp00**2*Sinv + pp00
-            p01 = -pp00*pp01*Sinv + pp01
-            p11 = -pp01*Sinv*pp01 + pp11
-
-            m[0, k] = mp0 + pp00 * Sinv * v
-            m[1, k] = mp1 + pp01 * Sinv * v
-            P[0, 0, k] = -pp00**2*Sinv + pp00
-            P[0, 1, k] = -pp00*pp01*Sinv + pp01
-            P[1, 0, k] = P[0, 1, k]
-            P[1, 1, k] = -pp01*Sinv*pp01 + pp11
-        else:
-            m[0, k] = mp0
-            m[1, k] = mp1
-            P[0, 0, k] = pp00
-            P[0, 1, k] = pp01
-            P[1, 0, k] = pp01
-            P[1, 1, k] = pp11
+        mp = A @ m[k-1, :]
+        Pp = A @ P[k-1, :, :] @ A.T + Q
 
 
-    return m, P
+        v = y[k] - H @ mp
+        S = H @ Pp @ H.T + R[k]
+        Sinv = np.linalg.inv(S)
+
+        Z += 0.5*v*Sinv*v + 0.5*np.log(2*np.pi * S)
+
+        K = Pp @ H.T @ Sinv
+
+        m[k, :] = mp + K @ v
+        P[k, :, :] = Pp - K @ H @ Pp
+        # P[k, :, :] = Pp - K @ S @ K.T
+
+
+    return m, P, Z

@@ -1,7 +1,9 @@
 import numpy as np
+import autograd.numpy as anp
 import numba
 from numba import njit
 from scipy.optimize import fmin_l_bfgs_b as fmin
+from scipy.special import polygamma
 from scipy import linalg
 from time import time
 
@@ -32,12 +34,14 @@ def digamma(x):
     return np.log(x) - 1/(2*x) - 1/(12*x2) + 1/(120*x4) - 1/(252*x6)
 
 
-@numba.njit(fastmath=True, cache=True)
-def mattern52(xx, sigmaf, l):
-    return sigmaf**2*np.exp(-np.sqrt(5)*xx/l)*(1 + np.sqrt(5)*xx/l +
+# @numba.njit(fastmath=True, cache=True)
+def mattern52(theta, xx):
+    sigmaf = theta[0]
+    l = theta[1]
+    return sigmaf**2*anp.exp(-anp.sqrt(5)*xx/l)*(1 + anp.sqrt(5)*xx/l +
                                                5*xx**2/(3*l**2))
 
-@numba.njit(fastmath=True, cache=True)
+# @numba.njit(fastmath=True, cache=True)
 def abs_diff(x, xp):
     try:
         N, D = x.shape
@@ -68,7 +72,7 @@ def diag_dot(A, B):
 
 def nufunc(nu, meaneta, meanlogeta):
     const = 1 + meanlogeta - meaneta
-    val = digamma(0, nu/2) - np.log(nu/2) - const
+    val = polygamma(0, nu/2) - np.log(nu/2) - const
     return val*val
 
 
