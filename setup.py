@@ -8,6 +8,7 @@ requirements = [
                 'numpy',
                 'scipy',
                 'numba',
+                'sympy',
                 'pytest >= 6.2.2',
             ]
 
