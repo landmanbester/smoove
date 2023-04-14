@@ -50,12 +50,16 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
 
     bnds = ((1e-5, 10*N), (1e-2, 1e2))
     I = w != 0.0
-    m0 = np.array((np.median(y[I][0:5]), 0.0))
-    P0 = np.array(((np.var(y[I][0:5]), 0.0), (0.0, 1.0)))
+    med0 = np.median(y[I][0:5])
+    m0 = np.array((med0, 1.0))
+    # P0 = np.array(((np.var(y[I][0:5] - med0), 0.0), (0.0, 1.0)))
+    P0 = np.eye(M)
+
+    # import pdb; pdb.set_trace()
 
     mup = np.zeros_like(y)
     for k in range(niter):
-
+        # print(m0, P0)
         theta, fval, dinfo = fmin(evidence, theta,
                                    args=(x, y, w, m0, P0, H),
                                    approx_grad=True,
@@ -73,7 +77,8 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
             break
 
         m0 = ms[0]
-        P0 = Ps[0]
+        # LB - why the 2?
+        P0 = 2*np.diag(np.diag(Ps[0]))
 
         res = y - muf
         ressq = res**2/sigman**2
