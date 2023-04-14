@@ -9,9 +9,13 @@ class mat52(object):
         dkdsig = kernel.diff(sigmaf)
         dkdl = kernel.diff(l)
 
+        # covariance function and derivs
         self.f = sm.lambdify((sigmaf, l, xx), kernel)
         self.dfds = sm.lambdify((sigmaf, l, xx), dkdsig)
         self.dfdl = sm.lambdify((sigmaf, l, xx), dkdl)
+
+        # state space representation
+
 
     def __call__(self, theta, xx):
         sigmaf = theta[0]
@@ -26,3 +30,5 @@ class mat52(object):
         dK[0] = self.dfds(sigmaf, l, xx)
         dK[1] = self.dfdl(sigmaf, l, xx)
         return K, dK
+
+

@@ -14,8 +14,9 @@ def func(x, a, b, c):
 @pmp("a", (-10, 1, 20))
 @pmp("b", (-5, 5))
 @pmp("c", (-1, 0, 1))
-@pmp("N", (128, 512))
+@pmp("N", (256, 512))
 def test_gpr(a, b, c, N):
+    np.random.seed(42)
     x = np.sort(np.random.random(N))
     f, df = func(x, a, b, c)
     sigmas = np.ones(N)  #np.exp(np.random.randn(N))
@@ -24,12 +25,12 @@ def test_gpr(a, b, c, N):
     y = f + n
 
 
-    xp = np.linspace(0, 1, 2*N)
+    xp = x  #np.linspace(0, 1, 2*N)
     fp, _ = func(xp, a, b, c)
     theta0 = np.array((np.std(y), 0.25*x.max(), 1.0))
     kernel = mat52()
     # kernel = sqexp()
-    theta, muf, covf = gplearn(y, x, w, xp, theta0, kernel)
+    theta, muf, covf = gplearn(x, y, w, xp, theta0, kernel)
 
     # plt.fill_between(xp, muf - np.sqrt(np.diag(covf)), muf + np.sqrt(np.diag(covf)))
     # plt.plot(xp, fp, 'k')
@@ -45,9 +46,25 @@ def test_gpr(a, b, c, N):
     assert frac_in >= 0.5
 
 
+@pmp("a", (-10, 1, 20))
+@pmp("b", (-5, 5))
+@pmp("c", (-1, 0, 1))
+@pmp("N", (256, 512))
+def test_emterp(a, b, c, N):
+    x = np.sort(np.random.random(N))
+    f, df = func(x, a, b, c)
+    sigmas = np.exp(np.random.randn(N))
+    n = sigmas*np.random.randn(N)
+    w = 1/sigmas**2
+    y = f + n
+    idx = np.random.randint(0, N, int(0.1*N))
+    y[idx] += 100*np.random.randn(N)
 
 
 
 
 
-test_gpr(-10, 5, -1, 128)
+
+
+
+# test_gpr(-10, 5, -1, 128)

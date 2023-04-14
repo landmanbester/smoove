@@ -9,7 +9,6 @@ requirements = [
                 'scipy',
                 'numba',
                 'pytest >= 6.2.2',
-                'autograd',
             ]
 
 

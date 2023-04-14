@@ -1,41 +1,47 @@
 import numpy as np
-from smoove.kanterp import kanterp, kanterp_fast
+from smoove.kanterp import kanterp
+import matplotlib.pyplot as plt
+import pytest
 
-def func(x):
-    return 10*np.sin(20*x) #*np.exp(-x**2/0.25) + np.exp(x)
+pmp = pytest.mark.parametrize
 
-def test_kanterp():
+def func(x, a, b, c):
+    return a*np.sin(b*x)*np.exp(c*x), a*b*np.cos(b*x)*np.exp(c*x) + a*c*np.sin(b*x)*np.exp(c*x)
 
-    # np.random.seed(420)
-
-    N = 128
-    x = np.sort(np.random.random(N))
-    xp = np.linspace(0, 1, 100)
-    f = func(x)
-    ft = func(xp)
+@pmp("a", (-10, 1, 20))
+@pmp("b", (-5, 5))
+@pmp("c", (-1, 0, 1))
+@pmp("N", (128, 512))
+def test_kanterp(a, b, c, N):
+    x = np.linspace(0.1, 0.9, N)
+    f, df = func(x, a, b, c)
     sigman = np.ones(N)
     # sigman = np.exp(np.random.randn(N)) #/10000
     n = sigman*np.random.randn(N)
     w = 1/sigman**2
     y = f + n
 
-    # # add outliers
-    # for i in range(int(0.1*N)):
-    #     idx = np.random.randint(0, N)
-    #     y[idx] += 10 * np.random.randn()
-    #     w[idx] = 0.25
+    # add outliers
+    for i in range(int(0.1*N)):
+        idx = np.random.randint(0, N)
+        y[idx] += 10 * np.random.randn()
 
-    ms, Ps = kanterp(x, y, w, 10, nu0=3)
+    theta, muf, covf = kanterp(x, y, w, niter=10, nu=2)
 
-    diff = f - ms[0, :]
-    sigma =  np.sqrt(Ps[0, 0, :])
+    diff = f - muf
 
-    # import pdb; pdb.set_trace()
+    plt.fill_between(x, muf - np.sqrt(covf), muf + np.sqrt(covf))
+    plt.plot(x, f, 'k')
+    plt.plot(x, muf, 'b')
+    plt.errorbar(x, y, sigman, fmt='xr')
 
-    Iin = np.abs(diff) < sigma
+    plt.show()
 
-    print(Iin.sum()/Iin.size)
+    Iin = np.abs(diff) <= np.sqrt(covf)
+    frac_in = np.sum(Iin)/Iin.size
+    assert frac_in >= 0.5
 
-test_kanterp()
+
+test_kanterp(10, 10, 1, 512)
 
 

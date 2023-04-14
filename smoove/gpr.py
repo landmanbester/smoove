@@ -3,7 +3,9 @@ import numpy as np
 import numba
 from scipy.optimize import fmin_l_bfgs_b as fmin
 from smoove.utils import abs_diff, diag_dot
-
+from smoove.kernels.mattern52 import mat52
+from scipy.special import polygamma
+from smoove.utils import nufunc
 
 def dZdtheta(theta, y, Sigma, kernel, xx):
     '''
@@ -72,7 +74,7 @@ def meancovf(xx, xxp, xxpp, y, Sigma, theta, kernel):
     return Kp.dot(Kyinv.dot(y)), Kpp - Kp.dot(Kyinv.dot(Kp.T))
 
 
-def gplearn(y, x, w, xp, theta0, kernel):
+def gplearn(theta, x, y, w, xp, kernel):
     """
     Args:
         y (_type_): _description_
@@ -97,7 +99,7 @@ def gplearn(y, x, w, xp, theta0, kernel):
 
     # kgrad = partial(kernel.value_and_grad, xx=XX)
     Sigma = 1.0/w
-    theta, fval, dinfo = fmin(dZdtheta, theta0, args=(y, Sigma, kernel, XX), approx_grad=False,
+    theta, fval, dinfo = fmin(dZdtheta, theta, args=(y, Sigma, kernel, XX), approx_grad=False,
                               bounds=((1e-5, None), (1e-3, None), (1e-5, 100)),
                               factr=1e6)
 
@@ -108,34 +110,35 @@ def gplearn(y, x, w, xp, theta0, kernel):
     return theta, muf, covf
 
 
-    # mu = meanf(XX, XX, y, 1/w, theta)
-    # # print(theta)
-    # # return meancovf(XX, XXp, XXpp, y, 1/w, theta)
+def emterp(theta, x, y, kernel, w=None, xp=None, nu0=2, niter=5, tol=1e-3):
+    if xp is None:
+        xp = x
 
-    # res = y - mu
-    # for k in range(niter):
-    #     print(k)
-    #     ressq = res**2/theta[-1]**2
+    if w is None:
+        w = np.ones_like(y)
 
-    #     # solve for weights
-    #     eta = (nu+1)/(nu + ressq)
-    #     logeta = polygamma(0, (nu+1)/2) - np.log((nu + ressq)/2)
+    eps = 1.0
+    mup = np.zeros_like(y)
+    for i in range(niter):
+        theta, muf, covf = gplearn(theta, x, y, w, xp, kernel)
 
-    #     # get initial hypers assuming weight scaling
-    #     theta, fval, dinfo = fmin(dZdtheta, theta, args=(XX, y, 1/eta), approx_grad=True,
-    #                             bounds=((1e-5, None), (1e-3, None), (1e-3, 100)),
-    #                             factr=1e12)
+        eps = np.linalg.norm(muf - mup)/np.linalg.norm(muf)
 
-    #     if k == niter - 1:
-    #         print(nu, theta)
-    #         return meancovf(XX, XXp, XXpp, y, 1/eta, theta)
-    #     else:
-    #         print(nu)
-    #         mu = meanf(XX, XX, y, 1/eta, theta)
+        if eps < tol:
+            break
 
-    #     res = y - mu
+        mup = muf.copy()
 
-    #     # degrees of freedom nu
-    #     nu, _, _ = fmin(nufunc, nu, args=(np.mean(eta), np.mean(logeta)),
-    #                     approx_grad=True,
-    #                     bounds=((1e-2, None),))
+        res = y - muf
+        ressq = res**2/theta[-1]**2
+
+        # new weights
+        w = (nu+1)/(nu + ressq)
+        logw = polygamma(0, (nu+1)/2) - np.log((nu + ressq)/2)
+
+        # degrees of freedom nu
+        nu, _, _ = fmin(nufunc, nu, args=(np.mean(w), np.mean(logw)),
+                        approx_grad=True,
+                        bounds=((1e-1, None),))
+
+    return theta, muf, covf

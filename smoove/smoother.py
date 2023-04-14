@@ -13,7 +13,6 @@ def RTSsmoother(m, P, x, sigmaf):
     Ps[N-1, :, :] = P[N-1, :, :]
 
     for k in range(N-2, -1, -1):
-        print(k, delta.size)
         A = Afunc(delta[k], M)
         Q = Qfunc(sigmaf**2, delta[k], M)
 

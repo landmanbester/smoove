@@ -13,7 +13,8 @@ def func(x, a, b, c):
 @pmp("b", (-5, 5))
 @pmp("c", (-1, 0, 1))
 @pmp("N", (128, 512))
-def test_Kfilter(a, b, c, N):
+def test_filtersmoother(a, b, c, N):
+    np.random.seed(42)
     x = np.linspace(0.1, 0.9, N)   #np.sort(np.random.random(N))
     f, df = func(x, a, b, c)
     sigmas = np.ones(N)  #np.exp(np.random.randn(N))
@@ -30,12 +31,12 @@ def test_Kfilter(a, b, c, N):
     H[0, 0] = 1
     Zs = np.zeros(2*N)
     for i, sigmaf in enumerate(sigmafs):
-        muf, covf, Z = Kfilter2(sigmaf, y, x, w, m0, P0, H)
+        muf, covf, Z = Kfilter(sigmaf, x, y, w, m0, P0, H)
         Zs[i] = Z.squeeze()
 
     idx = np.where(Zs == Zs.min())[0][0]
     sigmaf = sigmafs[idx]
-    muf, covf, Z = Kfilter2(sigmaf, y, x, w, m0, P0, H)
+    muf, covf, Z = Kfilter(sigmaf, x, y, w, m0, P0, H)
     mus, covs = RTSsmoother(muf, covf, x, sigmaf)
 
     # plt.fill_between(x, mus[:, 0] - np.sqrt(covs[:, 0, 0]), mus[:, 0] + np.sqrt(covs[:, 0, 0]))
@@ -54,4 +55,4 @@ def test_Kfilter(a, b, c, N):
 
 
 
-test_Kfilter(-10, 5, -1, 512)
+# test_filtersmoother(-10, 5, -1, 512)

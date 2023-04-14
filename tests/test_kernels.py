@@ -25,13 +25,3 @@ def test_sqexp():
 
     assert np.allclose(dKs, dK[0])
     assert np.allclose(dKl, dK[1])
-
-
-    print(np.abs(dK[0] - dKs).max())
-    print(np.abs(dK[1] - dKl).max())
-
-
-
-
-
-test_sqexp()

@@ -3,7 +3,7 @@ import numba
 from smoove.utils import Afunc, Qfunc
 
 @numba.njit(nogil=True, fastmath=True, cache=True)
-def Kfilter(sigmaf, y, x, w, m0, P0, H):
+def Kfilter(sigmaf, x, y, w, m0, P0, H):
     N = x.size
     delta = x[1:] - x[0:-1]
     M = m0.size
@@ -42,7 +42,7 @@ def Kfilter(sigmaf, y, x, w, m0, P0, H):
 
 
 @numba.njit(nogil=True, fastmath=True, cache=True)
-def Kfilter2(sigmaf, y, x, w, m0, P0, H):
+def Kfilter2(sigmaf, x, y, w, m0, P0, H):
     N = x.size
     delta = x[1:] - x[0:-1]
     M = m0.size
