@@ -31,12 +31,12 @@ def test_kanterp(a, b, c, N):
 
     diff = f - muf
 
-    # plt.fill_between(x, muf - np.sqrt(covf), muf + np.sqrt(covf))
-    # plt.plot(x, f, 'k')
-    # plt.plot(x, muf, 'b')
-    # plt.errorbar(x, y, sigman, fmt='xr')
+    plt.fill_between(x, muf - np.sqrt(covf), muf + np.sqrt(covf))
+    plt.plot(x, f, 'k')
+    plt.plot(x, muf, 'b')
+    plt.errorbar(x, y, sigman, fmt='xr')
 
-    # plt.show()
+    plt.show()
 
     # cheat!
     Iin = np.abs(diff) <= 2.0*np.sqrt(covf)
@@ -44,6 +44,6 @@ def test_kanterp(a, b, c, N):
     assert frac_in >= 0.20
 
 
-# test_kanterp(-10, -5, 1, 512)
+test_kanterp(-10, -5, 1, 512)
 
 

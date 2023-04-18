@@ -5,6 +5,7 @@ from scipy.optimize import fmin_l_bfgs_b as fmin
 from smoove.utils import nufunc
 from smoove.filter import Kfilter
 from smoove.smoother import RTSsmoother
+from time import time
 
 
 def evidence(theta, x, y, w, m0, P0, H):
@@ -34,6 +35,7 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
         nu0     - initial guess for the degrees of freedom parameter
 
     '''
+    ti = time()
     # check x is in (0,1)
     assert x.min() > 0.0
     assert x.max() < 1.0
@@ -55,16 +57,12 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
     # P0 = np.array(((np.var(y[I][0:5] - med0), 0.0), (0.0, 1.0)))
     P0 = np.eye(M)
 
-    # import pdb; pdb.set_trace()
-
     mup = np.zeros_like(y)
     for k in range(niter):
-        # print(m0, P0)
         theta, fval, dinfo = fmin(evidence, theta,
                                    args=(x, y, w, m0, P0, H),
                                    approx_grad=True,
                                    bounds=bnds)
-
         sigmaf = theta[0]
         sigman = theta[-1]
 
@@ -72,13 +70,13 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
         ms, Ps = RTSsmoother(m, P, x, sigmaf)
         muf = ms[:, 0]
         eps = np.linalg.norm(muf-mup)/np.linalg.norm(muf)
-
         if eps < tol:
             break
 
+        mup = muf.copy()
+
         m0 = ms[0]
-        # LB - why the 2?
-        P0 = 2*np.diag(np.diag(Ps[0]))
+        P0 = 2*np.diag(np.diag(Ps[0]))  # LB - why the 2?
 
         res = y - muf
         ressq = res**2/sigman**2
@@ -92,6 +90,5 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
                         approx_grad=True,
                         bounds=((1e-1, None),))
 
-        # print(sigmaf, sigman, nu, Z)
-
+    print(time() - ti)
     return theta, muf, Ps[:, 0, 0]

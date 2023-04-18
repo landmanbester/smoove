@@ -99,6 +99,16 @@ def modulated_chirp(t, a, b, c):
     chirp = np.sin(b*np.exp(t**2))
     return envelope * chirp
 
+
+@numba.njit(fastmath=True, inline='always', cache=True)
+def inv(A):
+    a = A[0,0]
+    b = A[0,1]
+    c = A[1,0]
+    d = A[1,1]
+    det = np.maximum(a*d - b*c, 1e-6)
+    return np.array(((d, -b), (-c, a)))/det
+
 # import matplotlib.pyplot as plt
 # a = 0.5
 # b = 30
