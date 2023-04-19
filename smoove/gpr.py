@@ -110,7 +110,7 @@ def gplearn(theta, x, y, w, xp, kernel):
     return theta, muf, covf
 
 
-def emterp(theta, x, y, kernel, w=None, xp=None, nu0=2, niter=5, tol=1e-3):
+def emterp(theta, x, y, kernel, w=None, xp=None, nu=2, niter=5, tol=1e-3):
     if xp is None:
         xp = x
 
@@ -141,4 +141,4 @@ def emterp(theta, x, y, kernel, w=None, xp=None, nu0=2, niter=5, tol=1e-3):
                         approx_grad=True,
                         bounds=((1e-1, None),))
 
-    return theta, muf, covf
+    return theta, muf, np.diag(covf)
