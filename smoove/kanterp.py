@@ -50,7 +50,7 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
 
     theta = np.array((np.sqrt(N), 1.0))
 
-    bnds = ((1e-5, 10*N), (1e-2, 1e2))
+    bnds = ((1e-2, 10*N), (1e-2, 1e5))
     I = w != 0.0
     med0 = np.median(y[I][0:5])
     m0 = np.array((med0, 1.0))
@@ -60,23 +60,36 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
     mup = np.zeros_like(y)
     for k in range(niter):
         theta, fval, dinfo = fmin(evidence, theta,
-                                   args=(x, y, w, m0, P0, H),
-                                   approx_grad=True,
-                                   bounds=bnds)
+                                  args=(x, y, w, m0, P0, H),
+                                  approx_grad=True,
+                                  bounds=bnds,
+                                  epsilon=1e-3)
         sigmaf = theta[0]
         sigman = theta[-1]
 
         m, P, Z = Kfilter(sigmaf, x, y, w/sigman**2, m0, P0, H)
         ms, Ps = RTSsmoother(m, P, x, sigmaf)
         muf = ms[:, 0]
-        eps = np.linalg.norm(muf-mup)/np.linalg.norm(muf)
-        if eps < tol:
-            break
 
-        mup = muf.copy()
+        if np.isnan(muf).any():
+            print(k, np.sqrt(N), sigmaf, sigman)
+            print(dinfo)
+            m0 = np.array((med0, 1.0))
+            P0 = np.eye(M)
+            mup = np.zeros_like(y)
+            sigmaf /= 2
+            sigman *= 10
+            theta = np.array((sigmaf, sigman))
+            continue
+        else:
+            m0 = ms[0]
+            P0 = 2*np.diag(np.diag(Ps[0]))  # LB - why the 2?
 
-        m0 = ms[0]
-        P0 = 2*np.diag(np.diag(Ps[0]))  # LB - why the 2?
+            eps = np.linalg.norm(muf-mup)/np.linalg.norm(muf)
+            if eps < tol:
+                break
+
+            mup = muf.copy()
 
         res = y - muf
         ressq = res**2/sigman**2
@@ -90,5 +103,5 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
                         approx_grad=True,
                         bounds=((1e-1, None),))
 
-    print(time() - ti)
+    # print(time() - ti)
     return theta, muf, Ps[:, 0, 0]

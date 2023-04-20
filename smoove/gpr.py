@@ -74,7 +74,8 @@ def meancovf(xx, xxp, xxpp, y, Sigma, theta, kernel):
     return Kp.dot(Kyinv.dot(y)), Kpp - Kp.dot(Kyinv.dot(Kp.T))
 
 
-def gplearn(theta, x, y, w, xp, kernel):
+def gplearn(theta, x, y, w, xp, kernel,
+            bounds=((1e-5, None), (1e-5, None), (1e-5, None))):
     """
     Args:
         y (_type_): _description_
@@ -99,8 +100,11 @@ def gplearn(theta, x, y, w, xp, kernel):
 
     # kgrad = partial(kernel.value_and_grad, xx=XX)
     Sigma = 1.0/w
-    theta, fval, dinfo = fmin(dZdtheta, theta, args=(y, Sigma, kernel, XX), approx_grad=False,
-                              bounds=((1e-5, None), (1e-3, None), (1e-5, 100)),
+    theta, fval, dinfo = fmin(dZdtheta,
+                              theta,
+                              args=(y, Sigma, kernel, XX),
+                              approx_grad=False,
+                              bounds=bounds,
                               factr=1e6)
 
     if dinfo['warnflag']:
@@ -137,7 +141,9 @@ def emterp(theta, x, y, kernel, w=None, xp=None, nu=2, niter=5, tol=1e-3):
         logw = polygamma(0, (nu+1)/2) - np.log((nu + ressq)/2)
 
         # degrees of freedom nu
-        nu, _, _ = fmin(nufunc, nu, args=(np.mean(w), np.mean(logw)),
+        nu, _, _ = fmin(nufunc,
+                        nu,
+                        args=(np.mean(w), np.mean(logw)),
                         approx_grad=True,
                         bounds=((1e-1, None),))
 
