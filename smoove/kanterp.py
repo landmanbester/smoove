@@ -62,8 +62,8 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
         theta, fval, dinfo = fmin(evidence, theta,
                                   args=(x, y, w, m0, P0, H),
                                   approx_grad=True,
-                                  bounds=bnds,
-                                  epsilon=1e-3)
+                                  bounds=bnds) #,
+                                #   epsilon=1e-3)
         sigmaf = theta[0]
         sigman = theta[-1]
 
