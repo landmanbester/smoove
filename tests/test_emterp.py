@@ -1,5 +1,6 @@
 import numpy as np
-from smoove.kanterp import kanterp
+from smoove.gpr import emterp
+from smoove.kernels.mattern52 import mat52
 import matplotlib.pyplot as plt
 import pytest
 
@@ -12,9 +13,9 @@ def func(x, a, b, c):
 @pmp("b", (-5, 5))
 @pmp("c", (-1, 0, 1))
 @pmp("N", (128, 256))
-def test_kanterp(a, b, c, N):
+def test_emterp(a, b, c, N):
     np.random.seed(42)
-    x = np.linspace(0.1, 0.9, N)
+    x = np.linspace(0, 1.0, N)
     f, df = func(x, a, b, c)
     sigman = np.ones(N)
     # sigman = np.exp(np.random.randn(N)) #/10000
@@ -27,16 +28,20 @@ def test_kanterp(a, b, c, N):
         idx = np.random.randint(0, N)
         y[idx] += 10 * np.random.randn()
 
-    theta, muf, covf = kanterp(x, y, w, niter=100, nu=2)
+    theta = np.array((np.var(y), 0.25*(x.max() - x.min()), 1.0))
+    kernel = mat52()
+    theta, muf, covf = emterp(theta, x, y, kernel, w=w, niter=10, nu=2)
+
+    # print(theta)
 
     diff = f - muf
 
-    plt.fill_between(x, muf - np.sqrt(covf), muf + np.sqrt(covf))
-    plt.plot(x, f, 'k')
-    plt.plot(x, muf, 'b')
-    plt.errorbar(x, y, sigman, fmt='xr')
+    # plt.fill_between(x, muf - np.sqrt(covf), muf + np.sqrt(covf))
+    # plt.plot(x, f, 'k')
+    # plt.plot(x, muf, 'b')
+    # plt.errorbar(x, y, sigman, fmt='xr')
 
-    plt.show()
+    # plt.show()
 
     # cheat!
     Iin = np.abs(diff) <= 2.0*np.sqrt(covf)
@@ -44,6 +49,6 @@ def test_kanterp(a, b, c, N):
     assert frac_in >= 0.20
 
 
-test_kanterp(-10, -5, 1, 512)
+test_emterp(-10, -5, 1, 512)
 
 

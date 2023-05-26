@@ -7,7 +7,9 @@ with open("README.md", "r") as fh:
 requirements = [
                 'numpy',
                 'scipy',
+                'matplotlib',
                 'numba',
+                'sympy',
                 'pytest >= 6.2.2',
             ]
 
