@@ -69,16 +69,16 @@ def Kfilter2(sigmaf, x, y, w, m0, P0, H):
     M = m0.size
     m = np.zeros((N, M), dtype=np.float64)
     P = np.zeros((N, M, M), dtype=np.float64)
-    m[0, :] = m0
-    P[0, :, :] = P0
+    m[0] = m0
+    P[0] = P0
     Z = np.zeros((1,1))  # evidence
     R = 1.0/w
     for k in range(1, N):
         A = Afunc(delta[k-1], M)
         Q = Qfunc(sigmaf**2, delta[k-1], M)
 
-        mp = A @ m[k-1, :]
-        Pp = A @ P[k-1, :, :] @ A.T + Q
+        mp = A @ m[k-1]
+        Pp = A @ P[k-1] @ A.T + Q
 
 
         v = y[k] - H @ mp
@@ -89,8 +89,8 @@ def Kfilter2(sigmaf, x, y, w, m0, P0, H):
 
         K = Pp @ H.T @ Sinv
 
-        m[k, :] = mp + K @ v
-        P[k, :, :] = Pp - K @ H @ Pp
+        m[k] = mp + K @ v
+        P[k] = Pp - K @ H @ Pp
         # P[k, :, :] = Pp - K @ S @ K.T
 
 

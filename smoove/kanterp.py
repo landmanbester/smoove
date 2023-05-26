@@ -3,7 +3,7 @@ import numba
 from scipy.special import polygamma
 from scipy.optimize import fmin_l_bfgs_b as fmin
 from smoove.utils import nufunc
-from smoove.filter import Kfilter
+from smoove.filter import Kfilter, Kfilter2
 from smoove.smoother import RTSsmoother
 from time import time
 
@@ -11,11 +11,11 @@ from time import time
 def evidence(theta, x, y, w, m0, P0, H):
     sigmaf  = theta[0]
     sigman = theta[-1]
-    muf, covf, Z = Kfilter(sigmaf, x, y, w/sigman**2, m0, P0, H)
+    muf, covf, Z = Kfilter2(sigmaf, x, y, w/sigman**2, m0, P0, H)
     return Z
 
 
-def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
+def kanterp(x, y, w, niter=5, nu=2, tol=1e-3, sigman_min=1e-2):
     '''
 
     General algorithm for smoothing with a Student's t-distribution.
@@ -48,9 +48,9 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
     H = np.zeros((1, M), dtype=np.float64)
     H[0, 0] = 1
 
-    theta = np.array((np.sqrt(N), 1.0))
+    theta = np.array((N, 1.0))
 
-    bnds = ((1e-2, 10*N), (1e-2, 1e5))
+    bnds = ((1e-2, 10*N), (sigman_min, 1e5))
     I = w != 0.0
     med0 = np.median(y[I][0:5])
     m0 = np.array((med0, 1.0))
@@ -72,7 +72,7 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
         muf = ms[:, 0]
 
         if np.isnan(muf).any():
-            print(k, np.sqrt(N), sigmaf, sigman)
+            print(k, np.sqrt(N), sigmaf, sigman, nu)
             print(dinfo)
             m0 = np.array((med0, 1.0))
             P0 = np.eye(M)
@@ -104,4 +104,4 @@ def kanterp(x, y, w, niter=5, nu=2, tol=1e-3):
                         bounds=((1e-1, None),))
 
     # print(time() - ti)
-    return theta, muf, Ps[:, 0, 0]
+    return theta, muf, Ps[:, 0, 0], nu
