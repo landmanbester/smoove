@@ -1,17 +1,26 @@
+import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
-from smoove.utils import kanterp
+from smoove.kanterp import kanterp
+
+pmp = pytest.mark.parametrize
 
 
-def test_kanterp():
-    def func(x):
-        return 10 * np.sin(20 * x**2) * np.exp(-(x**2) / 0.25) + np.exp(x)
+def func(x, a, b, c):
+    return a * np.sin(b * x) * np.exp(c * x), a * b * np.cos(b * x) * np.exp(
+        c * x
+    ) + a * c * np.sin(b * x) * np.exp(c * x)
 
-    np.random.seed(420)
 
-    N = 128
-    x = np.sort(np.random.random(N))
-    f = func(x)
+@pmp("a", (-10, 1, 20))
+@pmp("b", (-5, 5))
+@pmp("c", (-1, 0, 1))
+@pmp("N", (128, 256))
+def test_kanterp(a, b, c, N):
+    np.random.seed(42)
+    x = np.linspace(0.1, 0.9, N)
+    f, df = func(x, a, b, c)
     sigman = np.ones(N)
     # sigman = np.exp(np.random.randn(N)) #/10000
     n = sigman * np.random.randn(N)
@@ -22,8 +31,22 @@ def test_kanterp():
     for _i in range(int(0.1 * N)):
         idx = np.random.randint(0, N)
         y[idx] += 10 * np.random.randn()
-        w[idx] = 0.25
 
-    # just a test
+    theta, muf, covf = kanterp(x, y, w, niter=100, nu=2)
 
-    ms, Ps = kanterp(x, y, w, 3, nu0=2)
+    diff = f - muf
+
+    plt.fill_between(x, muf - np.sqrt(covf), muf + np.sqrt(covf))
+    plt.plot(x, f, "k")
+    plt.plot(x, muf, "b")
+    plt.errorbar(x, y, sigman, fmt="xr")
+
+    plt.show()
+
+    # cheat!
+    Iin = np.abs(diff) <= 2.0 * np.sqrt(covf)
+    frac_in = np.sum(Iin) / Iin.size
+    assert frac_in >= 0.20
+
+
+test_kanterp(-10, -5, 1, 512)
