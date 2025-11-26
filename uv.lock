@@ -1141,6 +1141,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "matplotlib" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "ruff" },
@@ -1160,6 +1161,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "matplotlib", specifier = ">=3.10.7" },
     { name = "pre-commit", specifier = ">=4.0.0" },
     { name = "pytest", specifier = ">=6.2.2" },
     { name = "ruff", specifier = ">=0.1.0" },

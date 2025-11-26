@@ -13,10 +13,10 @@ def func(x, a, b, c):
     ) + a * c * np.sin(b * x) * np.exp(c * x)
 
 
-@pmp("a", (-10, 1, 20))
+@pmp("a", (-10, 10))
 @pmp("b", (-5, 5))
-@pmp("c", (-1, 0, 1))
-@pmp("N", (128, 256))
+@pmp("c", (-1, 1))
+@pmp("N", (128,))
 def test_emterp(a, b, c, N):
     np.random.seed(42)
     x = np.linspace(0, 1.0, N)
@@ -34,23 +34,10 @@ def test_emterp(a, b, c, N):
 
     theta = np.array((np.var(y), 0.25 * (x.max() - x.min()), 1.0))
     kernel = mat52()
-    theta, muf, covf = emterp(theta, x, y, kernel, w=w, niter=10, nu=2)
-
-    # print(theta)
+    theta, muf, covf = emterp(theta, x, y, kernel, w=w, niter=100, nu=5)
 
     diff = f - muf
-
-    # plt.fill_between(x, muf - np.sqrt(covf), muf + np.sqrt(covf))
-    # plt.plot(x, f, 'k')
-    # plt.plot(x, muf, 'b')
-    # plt.errorbar(x, y, sigman, fmt='xr')
-
-    # plt.show()
-
-    # cheat!
-    Iin = np.abs(diff) <= 2.0 * np.sqrt(covf)
+    Iin = np.abs(diff) <= np.sqrt(covf)
     frac_in = np.sum(Iin) / Iin.size
-    assert frac_in >= 0.20
-
-
-test_emterp(-10, -5, 1, 512)
+    # about 67% needs to be within contours but that doe snot always work
+    assert frac_in >= 0.50

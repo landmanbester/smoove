@@ -134,7 +134,7 @@ def emterp(theta, x, y, kernel, w=None, xp=None, nu=2, niter=5, tol=1e-3):
 
         # degrees of freedom nu
         nu, _, _ = fmin(
-            nufunc, nu, args=(np.mean(w), np.mean(logw)), approx_grad=True, bounds=((1e-1, None),)
+            nufunc, nu, args=(np.mean(w), np.mean(logw)), approx_grad=True, bounds=((2.0, None),)
         )
 
     return theta, muf, np.diag(covf)

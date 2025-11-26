@@ -125,15 +125,3 @@ def inv(A):
     d = A[1, 1]
     det = np.maximum(a * d - b * c, 1e-6)
     return np.array(((d, -b), (-c, a))) / det
-
-
-# import matplotlib.pyplot as plt
-# a = 0.5
-# b = 30
-# c = 0
-# N = 512
-# t = np.linspace(-1, 1, N)
-# f = modulated_chirp(t, a, b, c)
-
-# plt.plot(t, f)
-# plt.show()

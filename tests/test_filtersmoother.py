@@ -42,17 +42,8 @@ def test_filtersmoother(a, b, c, N):
     muf, covf, Z = Kfilter(sigmaf, x, y, w, m0, P0, H)
     mus, covs = RTSsmoother(muf, covf, x, sigmaf)
 
-    # plt.fill_between(x, mus[:, 0] - np.sqrt(covs[:, 0, 0]), mus[:, 0] + np.sqrt(covs[:, 0, 0]))
-    # plt.plot(x, f, 'k')
-    # plt.plot(x, mus[:, 0], 'b')
-    # plt.errorbar(x, y, sigmas, fmt='xr')
-    # plt.show()
-
     # check that at least 67% of the true function lies in the 1-sigma confidence intervals
     diff = f - mus[:, 0]
     Iin = np.abs(diff) <= np.sqrt(covs[:, 0, 0])
     frac_in = np.sum(Iin) / Iin.size
     assert frac_in >= 0.5
-
-
-# test_filtersmoother(-10, 5, -1, 512)
