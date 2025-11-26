@@ -60,7 +60,10 @@ smoove/
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install in development mode (creates .venv and installs all dependencies)
-uv sync --extra dev
+uv sync --group dev
+
+# Set up pre-commit hooks (first time only)
+uv run pre-commit install
 
 # Run tests
 uv run pytest tests/
@@ -71,11 +74,18 @@ uv run ruff format .
 # Lint code
 uv run ruff check .
 
+# Run pre-commit on all files
+uv run pre-commit run --all-files
+
 # Build distributions
 uv build
 ```
 
-**Note**: `uv sync` creates a virtual environment (`.venv/`) and installs the package in editable mode along with all dependencies. This is the modern replacement for `pip install -e .`
+**Notes**:
+- `uv sync` creates a virtual environment (`.venv/`) and installs the package in editable mode along with all dependencies
+- `--group dev` installs the dev dependency group (pytest, ruff, pre-commit)
+- `--group test` installs only test dependencies
+- Pre-commit hooks will automatically run on `git commit` after installation
 
 ## Coding Standards
 
@@ -380,14 +390,15 @@ This project uses modern Python packaging best practices:
 - ✅ Python 3.10+ minimum version
 - ✅ `uv` for package management
 - ✅ `ruff` configured for linting and formatting
+- ✅ Pre-commit hooks configured (ruff + standard checks)
 - ✅ Modern src-layout structure
 - ✅ CI/CD with GitHub Actions using `uv`
 - ✅ `setup.py` removed (pure pyproject.toml)
+- ✅ Using PEP 735 `[dependency-groups]` for dev dependencies
 
 ### Future Improvements
 - [ ] Add type hints throughout codebase
 - [ ] Add more comprehensive tests
-- [ ] Consider pre-commit hooks with ruff
 - [ ] Add documentation (Sphinx or MkDocs)
 
 When adding features, ask:

@@ -36,23 +36,22 @@ dependencies = [
     "numba>=0.55",
 ]
 
-[project.optional-dependencies]
-testing = [
-    "pytest>=6.2.2",
-]
-dev = [
-    "pytest>=6.2.2",
-    "ruff>=0.1.0",
-]
-all = [
-    "smoove[testing,dev]",
-]
 
 [project.urls]
 Homepage = "https://github.com/landmanbester/smoove"
 Repository = "https://github.com/landmanbester/smoove"
 Issues = "https://github.com/landmanbester/smoove/issues"
 Changelog = "https://github.com/landmanbester/smoove/releases"
+
+[dependency-groups]
+dev = [
+    "pytest>=6.2.2",
+    "ruff>=0.1.0",
+    "pre-commit>=4.0.0",
+]
+test = [
+    "pytest>=6.2.2",
+]
 
 [tool.ruff]
 line-length = 100
@@ -70,6 +69,7 @@ select = [
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
+    "E741",  # ambiguous variable names (l, I are standard in scientific code)
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
 ]
