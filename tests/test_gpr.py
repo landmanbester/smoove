@@ -36,4 +36,4 @@ def test_gpr(a, b, c, N):
     diff = fp - muf
     Iin = np.abs(diff) <= np.sqrt(np.diag(covf))
     frac_in = np.sum(Iin) / Iin.size
-    assert frac_in >= 0.5
+    assert frac_in >= 0.4

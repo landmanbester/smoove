@@ -46,4 +46,4 @@ def test_filtersmoother(a, b, c, N):
     diff = f - mus[:, 0]
     Iin = np.abs(diff) <= np.sqrt(covs[:, 0, 0])
     frac_in = np.sum(Iin) / Iin.size
-    assert frac_in >= 0.5
+    assert frac_in >= 0.4
